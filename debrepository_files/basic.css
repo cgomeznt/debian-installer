@@ -1,0 +1,65 @@
+img {
+  border: 0;
+}
+body {
+  font: 14px Verdana, sans-serif;
+}
+h1 {
+  text-align: center;
+}
+dt {
+  font-weight: bold;
+}
+dd {
+  margin-bottom: 0.66em;
+}
+code, pre {
+  font: 100% monospace;
+}
+div#header {
+  text-align: center;
+}
+div#footer {
+  text-align: center;
+}
+div#content {
+  padding: 0.5em;
+}
+div#content p {
+  margin: 1em;
+}
+div#content *.inset-left {
+  vertical-align: text-top;
+  float: left;
+  margin-top: 0;
+  margin-left: 0;
+  margin-bottom: 1em;
+  margin-right: 1em;
+}
+div#content *.inset-right {
+  vertical-align: text-top;
+  float: right;
+  margin-top: 0;
+  margin-left: 1em;
+  margin-bottom: 1em;
+  margin-right: 0;
+}
+div#content h3 {
+  margin-bottom: 0.5em;
+}
+div#content p.contact {
+  text-align: center;
+  font-size: smaller;
+  font-family: arial, helvetica, sans-serif;
+  padding-top: 2em;
+}
+div#content p.codelisting {
+  padding: 2em;
+  margin-left: 5em;
+  background: #dddddd;
+  width: 75%;
+}
+div#content p.centered {
+  text-align: center;
+}
+

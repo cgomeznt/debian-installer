@@ -1,0 +1,174 @@
+Este es el núcleo de cuña, un núcleo industrial de la fuerza herramienta de división.
+Se utiliza para generar udebs núcleo de módulos para el instalador de Debian.
+
+Para utilizar el kernel-wedge, se necesita un paquete de código fuente, que será el
+"Fuente" para los udebs generados. Su paquete de código fuente será muy simple,
+buscando algo como esto:
+
+  debian / copyright
+  debian / changelog
+  de reglas de debian
+  debian / control.stub
+  kernel-versiones
+  módulos / <arch> / *
+  excluir a los paquetes
+  paquete de la lista
+
+Vamos a obtener los archivos fáciles de en medio. La lista de cambios es una lista de cambios, al igual que
+cualquier otra, como es el derecho de autor. Las reglas de debian puede ser algo tan simple
+como esta:
+
+  #! / Usr / bin / make-f
+  include / usr / share / kernel de cuña / normas genéricas de
+
+O puede usar el comando kernel-wedge directamente en el archivo de reglas propias.
+Ejecutarlo de algo parecido a la ayuda de su uso.
+
+debian / control.stub es la parte superior de un archivo de control. Algo como esto:
+
+  Fuente: linux-kernel-di-i386
+  Sección: debian-installer
+  Prioridad: opcional
+  Mantenedor: Debian Instalar Team System <debian-boot@lists.debian.org>
+  Build-Depends: kernel-wedge
+
+El resto del archivo de control se genera automáticamente.
+
+El archivo kernel-versiones se enumeran las versiones del núcleo para producir paquetes para.
+Hay 6 campos separados por espacios en blanco la línea, y se ve algo
+de esta manera:
+
+# Arco de la versión sufijo installedname sabor depende de la acumulación de
+i386 2.4.25-1 386 2.4.25-1-386 - kernel-image-2.4.25-1-386, kernel-pcmcia-modules-2.4.25-1-386
+i386 2.4.24-4.2.24 speakup speakup - kernel-image-4.2.24-speakup
+
+En este caso, estamos construyendo dos tipos diferentes de granos de i386.
+Nos podría fácilmente ser la construcción de núcleos de las distintas arquitecturas.
+
+La columna installedname ofrece el directorio / nombre de archivo que el núcleo y
+Los módulos se instalan utilizando en el núcleo. deb. La columna es el sufijo
+bien y, - o - $ sufijo, si es y entonces la imagen del núcleo en el interior del udeb se
+incluir la versión y el sabor en su nombre, si es de - $ sufijo, lo hará
+incluir este. (Lo mismo ocurrirá con el System.map). La construcción-depende de mostrar lo que deb del kernel
+a utilizar para este núcleo.
+
+Por último, se necesita un directorio de módulos o <arch> o directorios. Estos son
+utiliza para listar los módulos que van en un núcleo. Por ejemplo, para i386, que
+quiero tener algunos controladores de la NIC, por lo que crear un modules/i386/nic-modules
+lista de ellos:
+
+# Mi lista corta de los módulos de nic.
+8139too
+e100
+natsemi
+ne2k-pci
+tulipán
+Winbond-840
+3c59x
+
+Supongamos que queremos un conjunto diferente de módulos en el kernel de speakup sabor.
+A continuación, cree un módulo / <arch> - <flavor> / nic de los módulos en su lugar, se utilizará
+por preferencia. Una udeb se creará para cada archivo de lista de módulos,
+que contiene los módulos de la lista. Los nombres de los archivos debe coincidir con el
+nombres de los distintos módulos que figuran en el directorio / usr / share / kernel-wedge / lista de paquetes.
+
+Usted también querrá un archivo especial de los módulos de la lista para el udeb kernel-image.
+Si es necesario incluir ningún módulo con el kernel, puede ser un archivo vacío.
+pero usted debe tener unos módulos / <arch> / kernel.
+
+kernel-wedge copiará los módulos listados en cada paquete. Si una lista
+módulo no existe, se producirá un error por defecto. A veces es posible que desee
+hacer un módulo de ser incluidos, pero no es fatal para no estar disponible.
+Para indicar esto, seguir el módulo con un espacio y un "?".
+
+Los archivos de módulo de la lista también puede incluir otras listas del módulo de referencia. Este
+funciona de forma similar a CPP incluye, y se puede utilizar para incluir listas del módulo
+distribuido como parte del núcleo de cuña, o para otros. Por ejemplo:
+
+Conjunto estándar # kernel-wedge de módulos cdrom
+# Include <cdrom-core-modules>
+# Mi propia lista
+# Include ".. /.. / Includes / cdrom-módulos"
+
+Una capacidad final de los archivos de módulo de lista es la posibilidad de incluir un
+módulo de la lista y luego reemplazar las piezas de la misma. Siga un nombre de módulo con el "-" para
+eliminarlo de la lista si se incluyó anteriormente, como por un include:
+
+Conjunto estándar # kernel-wedge de módulos cdrom
+# Include <cdrom-core-modules>
+# Pero no es uno
+sr_mod -
+
+Los udebs se nombran con la versión del kernel en el nombre del paquete,
+ya que puede ser útil durante las transiciones del núcleo. La cadena es-di
+anexa para evitar cualquier colisión con los mejores elementos en los nombres de paquetes deb reales.
+
+Algunos otros archivos, opcionales:
+
+El archivo del paquete de la lista se puede utilizar para anular y / o valores de suplimiento
+kernel-wedge propio / usr / share / kernel-wedge / paquete de la lista de archivos. Los nuevos paquetes
+puede ser definido en este archivo con el mismo formato, o las entradas parciales pueden
+puede utilizar para reemplazar uno o varios campos de un paquete se ha definido previamente. Para
+ejemplo:
+
+# Este archivo se utiliza para crear el archivo de control. La versión del kernel y
+# "Di" se añaden a los nombres de los paquetes. La sección se puede dejar fuera. Lo mismo ocurre con
+Arquitectura #, que se deriva de los ficheros en el directorio de módulos.
+# Sobrescribe especificaciones de / usr / share / kernel-wedge / lista de paquetes.
+Paquete: la grasa de los módulos
+Prioridad: normal
+
+Paquete: nic módulos
+Depende: kernel-image, NIC-compartidos-módulos, los módulos básicos, firewire-core-modules
+
+Del paquete: otro de los módulos
+Depende: kernel-image
+Descripción: algunos otros módulos que me gusta tener en el instalador
+
+Tenga en cuenta que las dependencias que no están integradas se omiten en el archivo de control
+generado por la unión de los archivos de la lista de paquetes. Si no queremos que eso
+suceder para que una dependencia especial, siga por un "!"
+
+Depende: algunos-de terceros-módulo!
+
+El archivo de exclusión de los paquetes es un archivo opcional que muestra los udebs (por
+nombre completo del paquete) que normalmente se construyó, pero que desea
+saltar.
+
+Edificio:
+
+Una vez que tenga el paquete de fuente de configurar, ejecutar:
+kernel-wedge generación de control de> debian / control
+Sólo tienes que hacer esto una vez. A continuación, crear como cualquier otro paquete. Ser
+sorprendido por las cantidades puras de udebs que se escupen sin ningún esfuerzo.
+Tenga en cuenta que tendrá que tener los kernels listados como dependencias de construcción
+instala normalmente, pero ve "kernel-wedge ayuda build-all" para un
+alternativo.
+
+Varios otra información:
+
+El "kernel-wedge copia de los módulos de" comando no hace la copia real de los módulos
+a los directorios temporales que se utilizan para construir el paquete. Es complicado por
+la necesidad de asegurarse de que todas las dependencias de un módulo se incluyen en
+su paquete, o en un paquete del cual depende. Si es necesario, adicional
+módulos se añade a un paquete para asegurarse de que las dependencias son
+satisfecho.
+
+La información de dependencia de modules.dep se compara con la salida del
+el "kernel-wedge gene-dependencias" de comandos, que extrae la información de dependencia
+de paquetes de las listas, y la formatea en un formulario utilizado por tsort. Si cualquier
+Los módulos adicionales se necesitan para satisfacer las dependencias de los módulos en los udebs,
+que se añadirá automáticamente. Dado que podrían resultar en módulos como
+copia en udebs múltiples, el "núcleo de la cuña de encontrar los taxistas" comando se utiliza para
+buscar duplicados de los módulos. Cuando usted tiene duplicados, es necesario encontrar
+(O hacer) un paquete que ambos paquetes dependen, y mover el duplicado
+módulos a la misma. Por otra parte, como un corte rápido puede simplemente tocar un archivo
+llamado caso omiso de los taxistas en la raíz de su paquete y duplicar módulos
+dejar de ser un error fatal.
+
+SourceDir se puede configurar para un directorio que contiene un árbol de los módulos del núcleo y
+imagen del núcleo, y se utiliza en lugar del árbol de costumbre. Ese directorio
+tendrá que tener un archivo de modules.dep ya generado para que esto funcione
+aunque - pero el modules.dep incluso se pueden copiar de otro sistema y
+que va a trabajar. Esto puede ser útil si usted no puede instalar el archivo
+kernel-image, o son una compilación cruzada.

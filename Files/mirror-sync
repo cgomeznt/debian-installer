@@ -1,0 +1,126 @@
+#!/bin/bash
+
+VERBOSE=""
+if echo "$@" | grep -q -- "-v"; then
+	VERBOSE=1
+fi
+
+HOSTNAME="$(hostname -f)"
+
+## The mirror to use
+MIRROR=ftp.nl.debian.org
+MDIR=debian
+# If the host name of the mirror in the trace directory differs from the
+# cname you prefer to use for it, define it above this line
+MIRROR_HOSTNAME=${MIRROR_HOSTNAME:-$MIRROR}
+
+LOCAL=/home/mirror/debian
+TDIR="$LOCAL/project/trace"
+
+SUITES="stable"
+DISTS="squeeze"
+ARCHS="i386"
+SECTS="main,main/debian-installer"
+
+if ! rsync -aq rsync://$MIRROR/$MDIR/project/trace/ $TDIR/; then
+	echo "Failed to retrieve mirror stampfile"
+	exit 1
+fi
+
+# Only display status if -s option is passed
+if echo "$@" | grep -q -- "-s"; then
+	wget -q -t 2 -T 5 \
+	     http://ftp.debian.org/debian/project/trace/ftp-master.debian.org \
+	     -O $TDIR/##ftp-master## || rm -f $TDIR/##ftp-master##
+	for i in $TDIR/*; do
+		tdate=$(head -n1 $i)
+		echo -e "$(date -d "$tdate" +%s)\t$(date -d "$tdate") - $(basename $i)"
+	done | sort | cut -f2
+	if [ -e /srv/debmirror/debian/Archive-Update-in-Progress-$HOSTNAME ]; then
+		echo
+		echo "Mirror sync in progress"
+	fi
+	exit 0
+fi
+
+if [ ! -f $TDIR/$MIRROR_HOSTNAME ]; then
+	echo "No tracefile for $MIRROR_HOSTNAME found"
+	exit 1
+fi
+
+# Only update if older than 12 hours (43200 sec)
+if [ -s $TDIR/$HOSTNAME ]; then
+	mirror_date=$(head -n1 $TDIR/$MIRROR_HOSTNAME)
+	local_date=$(head -n1 $TDIR/$HOSTNAME)
+   	if [ $(( $(date -d "$mirror_date" +%s) -
+		 $(date -d "$local_date" +%s) )) -lt 43200 ]; then
+		[ -z "$VERBOSE" ] || echo "Mirror is already up-to-date"
+		[ -z "$VERBOSE" ] || echo "Last update of $MIRROR_HOSTNAME: $(cat $TDIR/$MIRROR_HOSTNAME)"
+		exit 0
+	fi
+fi
+
+
+echo "Mirror sync start - $(date)"
+
+RET=0
+debmirror -v \
+    --arch=$ARCHS \
+    --dist=$DISTS \
+    --section=$SECTS \
+    --pdiff=use \
+    --method="http" \
+    --ignore-small-errors \
+    --nosource \
+    --postcleanup \
+    --include='indices/*' --include='tools/*' --include='doc/*' \
+    --ignore='.*README.*' --ignore='.*ls-lR.*' \
+    --exclude='(e/eclipse(|-.*)/.*)' \
+    --exclude='/(boson|ice.*|kde.*|koffice|python-.*|qt-x11-free|samba|wengophone)-dbg_' \
+    --exclude='/lib(boost|gl1-mesa-dri|nel|qt4|.*webkit.*|wine|wxgtk.*|xul.*|zeroc-ice.*)-dbg_' \
+    --exclude='/libqt4-debug_' \
+    -h $MIRROR $LOCAL || RET=$?
+
+if [ $RET -ne 0 ]; then
+	exit $RET
+fi
+
+## Removed from debmirror call. Instead ignore these dirs and use rsync below
+## to fetch the files we want.
+##  --include='indices/*' --include='tools/*' --include='doc/*' \
+
+[ -z "$VERBOSE" ] || echo ""
+echo "Mirror sync rsync - $(date)"
+
+# For indices we only sync the files we actually want
+[ -z "$VERBOSE" ] || echo "Starting rsync for ./indices"
+IND_EXCL_OPTS="--delete-excluded"
+for dist in $(echo $DISTS | sed "s/,/ /g"); do
+	for sect in $(echo $SECTS | sed "s/,/ /g; s/\//./g"); do
+		IND_EXCL_OPTS="$IND_EXCL_OPTS --include=override.$dist.*$sect.gz"
+	done
+done
+IND_EXCL_OPTS="$IND_EXCL_OPTS --exclude=override.*"
+for suite in $(echo $SUITES | sed "s/,/ /g"); do
+	IND_EXCL_OPTS="$IND_EXCL_OPTS --include=suite-$suite.list*"
+done
+IND_EXCL_OPTS="$IND_EXCL_OPTS --exclude=suite-*"
+# Doubt we need these huge arch-* files even for the architectures we do mirror
+#for arch in $(echo $ARCHS | sed "s/,/ /g"); do
+#	IND_EXCL_OPTS="$IND_EXCL_OPTS --include=arch-$arch.*"
+#done
+IND_EXCL_OPTS="$IND_EXCL_OPTS --exclude=arch-*"
+# Some huge files we probably also don't need
+IND_EXCL_OPTS="$IND_EXCL_OPTS --exclude=indices/Maintainers"
+IND_EXCL_OPTS="$IND_EXCL_OPTS --exclude=indices/md5sums.gz"
+IND_EXCL_OPTS="$IND_EXCL_OPTS --exclude=indices/files/typical.files"
+rsync -aq --delete $IND_EXCL_OPTS rsync://$MIRROR/$MDIR/indices $LOCAL
+
+[ -z "$VERBOSE" ] || echo "Starting rsync for various files"
+# rsyncing READMEs using wildcards may fail on some mirrors
+#rsync -aq rsync://$MIRROR/$MDIR/README* $LOCAL
+rsync -aq rsync://$MIRROR/$MDIR/README $LOCAL
+rsync -aq rsync://$MIRROR/$MDIR/README.html $LOCAL
+rsync -aq --delete rsync://$MIRROR/$MDIR/doc $LOCAL
+
+echo "Mirror sync completed - $(date)"

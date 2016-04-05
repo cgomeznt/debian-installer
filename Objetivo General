@@ -1,0 +1,17 @@
+Modificar una ISO con debian-installer y agregar otro kernel.
+
+Debian-installer
+ fuentes
+linux-kernel-di-2.6 fuentes
+kernel-weged fuentes
+scritps (Modificar una imagen .iso existente)
+
+Debo bajar el debian-installer su fuente y realizar las modificaciones como lo es el archivo de pressed, imagenes y el tipo de kernel que utilizara.
+
+Kernel-weged me ayudara a crear los udebs del kernel que indique en debian-installer que utilizara.
+Para eso debo  tener los fuentes de linux-kernel-di-2.6 y modificarlo, luego de eso utilizaremos el kernel-weged.
+Los udebs generados deben ser copiados en debian-installer-custom/debian-installer-20110106+squeeze4/build/localudebs/
+
+Luego tengo que compilar el debian-installer para que se generen los initrd.gz y los vmlinuz según los udebs requeridos.
+
+Luego utilizo los script para abrir el CD y copiar los initrd.gz y vmlinuz en sus lugares correspondientes y copiar en un directorios los udebs que deben estar dentro de la carpeta pool, luego se ejecuta el otro script y culmina la iso.

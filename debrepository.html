@@ -1,0 +1,466 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"><head>
+
+
+<title>
+  Roberto C. Sanchez's Homepage  | Automatic Debian Package Repository HOWTO
+</title>
+<link title="style" rel="stylesheet" href="debrepository_files/basic.css" type="text/css">
+<!-- Contents Copyright (c) 2005-2011 Connexer Ltd. -->
+<meta http-equiv="Description" name="Description" content="Connexer Ltd. Homepage">
+<meta http-equiv="Keywords" name="Keywords" content="IT Information Technology Consulting Open Source Software Free Software Website Design Custom Software Development">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<!--[if lt IE 7.]>
+<script defer type="text/javascript" src="/~roberto/scripts/pngfix.js"></script>
+<![endif]-->
+
+
+
+</head>
+<body>
+
+
+<div id="header">
+
+<div id="menu">
+  <a href="http://people.connexer.com/%7Eroberto/main">Home</a> | <a href="http://people.connexer.com/%7Eroberto/debian">Debian GNU/Linux</a> | <a href="http://people.connexer.com/%7Eroberto/linux">Linux (general)</a> | <a href="http://people.connexer.com/%7Eroberto/links">Links</a>
+</div>
+  
+</div>
+
+<div id="main">
+<div id="content">
+
+
+
+<h2>Automatic Debian Package Repository HOWTO</h2>
+
+<h3><a id="revisions">Revision History</a></h3>
+<table>
+<tbody><tr>
+<th>Revision</th>
+<th>Date</th>
+<th>Revised by</th>
+<th>Comments</th>
+</tr>
+<tr>
+<td>0.3</td>
+<td>20070928</td>
+<td>RCS</td>
+<td>Deprecated this HOWTO in favor of reprepro</td>
+</tr>
+<tr>
+<td>0.2</td>
+<td>20050606</td>
+<td>RCS</td>
+<td>Updated to reflect that Sarge is the new stable distribution</td>
+</tr>
+<tr>
+<td>0.1</td>
+<td>20050112</td>
+<td>RCS</td>
+<td>Added information about alternatives and fixed numerous typos</td>
+</tr>
+<tr>
+<td>0.0</td>
+<td>20050109</td>
+<td>RCS</td>
+<td>Initial draft</td>
+</tr>
+</tbody></table>
+
+<hr>
+<h4 style="color: red;">WARNING</h4>
+<p>I now consider this HOWTO deprecated.  At the time that I wrote it, 
+the available tools were seriously lacking.  Nowadays, the tools are 
+much better and much easier to setup.  I encourage you to use the setup 
+described in Debian Administration's <a href="http://www.debian-administration.org/articles/286"><i>Setting up your own APT repository with upload support</i></a>
+ article.  I now use a setup that is nearly identical to the one 
+described in the article.  However, I will leave this HOWTO here 
+indefinitely as it may be of interest to some.</p>
+<hr>
+
+<h3><a id="contents">Table of Contents</a></h3>
+<dl>
+<dt><a href="#intro">Introduction</a></dt><dd></dd>
+<dt><a href="#alternatives">Alternatives</a></dt><dd></dd>
+<dt><a href="#start">Getting Started</a></dt><dd></dd>
+<dt><a href="#setup">Setting Up</a></dt><dd></dd>
+<dt><a href="#populating">Populating the Repository</a></dt><dd></dd>
+<dt><a href="#config">Preparing the Config Files</a></dt><dd></dd>
+<dt><a href="#updating">Updating the Repository</a></dt><dd></dd>
+<dt><a href="#using">Using the Repository</a></dt><dd></dd>
+<dt><a href="#feedback">Provide Feedback</a></dt><dd></dd>
+</dl>
+
+<hr>
+
+<h3><a id="intro">Introduction</a></h3>
+
+<p>This HOWTO was inspired by several things:</p>
+<ul>
+<li>A desire to more effectively manage some packages I have backported and created locally (kernel images and JDK packages).</li>
+<li>A desire to help others who are interested in creating a local repository.</li>
+<li>A desire to help extend some of the available documentation, which does not go into sufficient detail.</li>
+<li>An interest in creating an automatic repository (which is not so 
+well documented), as opposed to a trivial repository (which limits 
+flexibility).</li>
+</ul>
+
+<p>There are also many good reasons as to why you may want to create 
+your own package repository.  Say you are trying to install something 
+that depends on the package <code>j2sdk1.4</code>.  This is not possible
+ without outside sources, since Debian does not distribute JREs or JDKs.
+  Naturally, you could just add the Blackdown deb sources to your 
+sources.list and be on your way.  But what if you prefer the Sun JRE?  
+You would have to download it from Sun and manually install it.  If you 
+do this with enough packages you will lose track or begin forgetting 
+where you have placed things.</p>
+
+<p>In my case, I used the excellent package <a href="http://packages.debian.org/java-package">java-package</a>
+ to create a .deb file from the Sun JRE .bin file.  Now I can place that
+ .deb file into my repository, and it only gets installed if I have 
+packages that depend on it.  If I remove all of the depending packages, 
+the JRE is also removed.  I can <code>apt-get install</code> the JRE 
+onto all of my machines without need for a manual installation each 
+time.  If an update is released, I can create the requisite .deb package
+ and place it in my repository so that all of my machines update 
+automatically.</p>
+
+<p>Additionally, what if you want to customize an existing Debian 
+package and have it available to all your Debian machines?  I also have a
+ detailed walkthrough on <a href="http://people.connexer.com/%7Eroberto/howtos/debcustomize">customizing Debian packages</a>.
+  Once you have customized more than a couple of packages, it will be 
+much easier to keep track of them if they are all in a local repository 
+accessible by APT.  Clearly, there are many reasons why you may want to 
+create your own repository.</p>
+
+<p>An additional motivation for me to write this was because some people out there <a href="http://lists.debian.org/debian-user/2005/01/msg00055.html">are unhappy</a>
+ with all of the trivial repositories floating around out there.  
+Apparently, trivial repositories are not compatible with apt-pinning and
+ make life difficult for those people who make use of unofficial package
+ repositories and like to pin their packages.</p>
+
+<p>The main source of information during my discovery process was Aaron Isotton's <a href="http://www.debian.org/doc/manuals/repository-howto/repository-howto.en.html">Debian Repository HOWTO</a>.
+  This document gives an excellent overview of the process, but is 
+lacking in some areas.  Specifically, the finer details of generating 
+all the files necessary to make your repository work.</p>
+
+<p>This document assumes that you have a good level of understanding of 
+the Debian distribution and feel comfortable using the command line.</p>
+
+<h3><a id="alternatives">Alternatives</a></h3>
+
+<p>It would not be fair of me to let you think that this is the only 
+possible way to setup a Debian package repository.  Naturally, you could
+ just install your packages locally using <code>dpkg -i</code>, or simply find packages in someone else's repository, like, for example, those listed at <a href="http://www.apt-get.org/">apt-get.org</a>.</p>
+
+<p>Two possible alternatives are <a href="http://alioth.debian.org/projects/mirrorer/">mirrorer</a> and <a href="http://dak.ganneff.de/pool/main/d/dak/">dak</a>.
+  The mirrorer software is currently only available via CVS, but 
+provides support for more advanced repositories (i.e., a pooled 
+structure without a database server and the ability to check and 
+generate signatures).  The dak package is used directly in the 
+maintenance of the official Debian repository and is now available 
+officially in the <a href="http://packages.debian.org/dak">Debian archive</a>.</p>
+
+<p>Another alternative is an automated tool by Ola Lundqvist called <a href="http://packages.debian.org/debarchiver">debarchiver</a>.  This tool will automatically create a repository for you in <code>/var/lib/debarchiver</code>.  It also creates an incoming directory where you place your packages along with a <code>.changes</code>
+ file and sets up a cron job to monitor the directory and automatically 
+migrate the packages for you.  This is more in line with how the real 
+Debian repository operates.  I was not really aware of all the 
+functionality of this tool when I embarked on my quest.</p>
+
+<p>Since I change my repository infrequently, I have chosen to not use 
+debarchiver.  Naturally, you can choose to make use of derbarchiver or 
+to take my more manual approach.  If you still want to do it this way or
+ if you just want to see better how a Debian package repository is 
+structured, then read on.</p>
+
+<h3><a id="start">Getting Started</a></h3>
+
+<p>Necessary packages:</p>
+<ul>
+<li><a href="http://packages.debian.org/apt-utils">apt-utils</a></li>
+</ul>
+
+<p>Other necessities:</p>
+<ul>
+<li>A place to store your packages (local directory, or remote FTP or web space).</li>
+</ul>
+
+<p>I have made the assumption that you will be creating your package 
+repository locally and then using it locally or uploading it to a remote
+ machine and accessing it from there.  If the machine you will be using 
+to create the repository has an HTTP or FTP server running, you can 
+access your packages locally and remotely from other machines.  If you 
+have a remote server that you can access via SSH, or some other shell, 
+then you can simply create everything on the remote machine and access 
+it from anywhere you like.</p>
+
+<h3><a id="setup">Setting Up</a></h3>
+
+<p>You first need a directory structure to house your packages.  Here are some example choices for a root:</p>
+<ul>
+<li><code>~/packages/</code></li>
+<li><code>/packages/</code></li>
+<li><code>/var/www/debian/</code></li>
+<li><code>/usr/local/packages/</code></li>
+</ul>
+
+<p>Your choice depends on whether you intend to serve your packages to 
+remote machines or use them only on the local machine.  You should 
+create the desired directory and <code>cd</code> into it.</p>
+
+<p>Now you need to create the remainder of your directory tree.  You can visit the <a href="http://www.debian.org/doc/manuals/repository-howto/repository-howto.en.html">Debian Repository HOWTO</a>
+ for a detailed look at exactly how the real Debian repository is 
+structured.  I have personally chosen to model mine after that 
+structure, but your needs will dictate your choice.  Regardless, you 
+need to start by creating a directory below your repository root called <code>dists/</code>.</p>
+
+<p>In my case, I serve my repository to all the machines on my LAN via Apache, so my repository is located at <code>/var/www/debian/</code>, with the directory <code>dists/</code> one level below that.</p>
+
+<p>Under <code>dists/</code>, you need to create one or more directories
+ for the distributions you will serve packages to.  In my case, I have 
+one server and two PCs running Sarge, so I have the directory <code>dists/sarge/</code>.</p>
+
+<p>Now you need to make yet another choice.  What sections will you 
+have?  The sections are those which follow your distribution line the 
+sources.list.  For example, the Debian package source:</p>
+
+<p style="text-indent:40px"><code>deb http://ftp.es.debian.org/debian/ sarge main non-free contrib</code></p>
+
+<p>contains the distribution <code>sarge</code>, and the sections <code>main</code>, <code>contrib</code> and <code>non-free</code>.</p>
+
+<p>To see an example of a repository with a slightly different structure, visit <a href="http://backports.org/">backports.org</a>.
+  They have structured their sections so that they are named after 
+individual packages.  That way you can make certain that you get only 
+the backported packages you want.  Personally, I take the former 
+approach, since it is my personal repository and I don't introduce any 
+packages I don't want.</p>
+
+<p>Below each section you will need one or more binary directories and 
+an optional source directory.  In my case, all of my machines are i386 
+architecture, so I have a <code>binary-i386/</code> and a <code>source/</code>, since I choose to also maintain source packages whenever possible.</p>
+
+<p>When you are done creating all the directories, you should have a structure similar to this:</p>
+<p class="codelisting">
+<code>
+$ find . -type d<br>
+.<br>
+/dists<br>
+/dists/sarge<br>
+/dists/sarge/contrib<br>
+/dists/sarge/contrib/binary-i386<br>
+/dists/sarge/contrib/source<br>
+/dists/sarge/main<br>
+/dists/sarge/main/binary-i386<br>
+/dists/sarge/main/source<br>
+/dists/sarge/non-free<br>
+/dists/sarge/non-free/binary-i386<br>
+/dists/sarge/non-free/source<br>
+</code>
+</p>
+
+<h3><a id="populating">Populating the Repository</a></h3>
+
+<p>Now you must place your package files in their corresponding 
+directories.  How you do this is a matter of choice, though taking the 
+time to organize yourself properly in the beginning pays off as your 
+repository grows larger.  Typically, binary .debs (those which you can 
+install directly with an <code>apt-get install</code> command, would go in their corresponding <code>binary-i386/</code> directory.  If you support a different processor architecture, then you would use that instead.</p>
+
+<p>The only thing I have not managed to figure out yet is a pooled 
+repository, like the Debian repository.  This is where every package is 
+kept in a common directory and the respective <code>binary-$(ARCH)/</code>
+ directories only contain a reference to the appropriate files.  This 
+comes in handy when you have to support more than one architecture, 
+since certain package (e.g., documentation, interpreted scripts, etc.) 
+are the same and do not require architecture-dependent compilation.  
+However, since I only have i386 machines, I have not bothered to learn 
+how to do this.  Perhaps in the future.</p>
+
+<p>Each <code>binary-i386/</code> directory and <code>source/</code> directory requires a file called <code>Release</code>, which indicates the target architecture and some additional information.  For example, the <code>Release</code> file for the for the Sarge main binary files is located at <code>/dists/sarge/main/binary-i386/Release</code> and has these contents:</p>
+
+<p class="codelisting">
+<code>
+Archive: stable<br>
+Component: main<br>
+Origin: &lt;Your name or organization&gt;<br>
+Label: &lt;A descriptive label&gt;<br>
+Architecture: &lt;Your processor arch or "source"&gt;<br>
+</code>
+</p>
+
+<p>Once you are finished creating the necessary files, you should have something like this:</p>
+<p class="codelisting">
+<code>
+$ find . -name Release<br>
+/dists/sarge/contrib/binary-i386/Release<br>
+/dists/sarge/contrib/source/Release<br>
+/dists/sarge/main/binary-i386/Release<br>
+/dists/sarge/main/source/Release<br>
+/dists/sarge/non-free/binary-i386/Release<br>
+/dists/sarge/non-free/source/Release<br>
+</code>
+</p>
+
+<p>Don't forget to update the archive, component and architecture fields for each file.</p>
+
+<h3><a id="config">Preparing the Config Files</a></h3>
+
+<p>I have two configuration files:</p>
+
+<ul>
+<li><code>apt-sarge-release.conf</code>: This file is used to generate the Sarge "Release" file</li>
+<li><code>apt-ftparchive.conf</code>: This file is used to tell <code>apt-ftparchive</code> what distributions and sections need to be processed.</li>
+</ul>
+
+<p>All of these files reside in the repository root.  The contents of 
+each are listed below.  If you are really interested, you can read the <code>apt-ftparchive(1)</code> documentation.  It is a bit hard to follow, but still informative.</p>
+
+<p>Contents of <code>apt-sarge-release.conf</code>:</p>
+<p class="codelisting">
+<code>
+APT::FTPArchive::Release::Origin "Your name or organization";<br>
+APT::FTPArchive::Release::Label "Descriptive label";<br>
+APT::FTPArchive::Release::Suite "stable";<br>
+APT::FTPArchive::Release::Codename "sarge";<br>
+APT::FTPArchive::Release::Architectures "i386 source";<br>
+APT::FTPArchive::Release::Components "main contrib non-free";<br>
+APT::FTPArchive::Release::Description "More detailed description";<br>
+</code>
+</p>
+
+<p>Below are the contents of the <code>apt-ftparchive.conf</code> file. 
+ I know that there are more efficient ways to accomplish the same thing.
+  However, I was unable to get them to work.  The documentation makes is
+ seem as though it is possible to specify a generic directory structure 
+and let apt-ftparchive find all the specific directories.  But nothing I
+ could do would make it find a directory that I had not explicitly 
+stated.  So, here is the brute force approach:</p>
+
+<p class="codelisting">
+<code>
+Dir {<br>
+&nbsp;&nbsp;ArchiveDir ".";<br>
+&nbsp;&nbsp;CacheDir ".";<br>
+};<br>
+<br>
+Default {<br>
+&nbsp;&nbsp;Packages::Compress ". gzip bzip2";<br>
+&nbsp;&nbsp;Sources::Compress "gzip bzip2";<br>
+&nbsp;&nbsp;Contents::Compress "gzip bzip2";<br>
+};<br>
+<br>
+BinDirectory "dists/sarge/main/binary-i386" {<br>
+&nbsp;&nbsp;Packages "dists/sarge/main/binary-i386/Packages";<br>
+&nbsp;&nbsp;Contents "dists/sarge/Contents-i386";<br>
+&nbsp;&nbsp;SrcPackages "dists/sarge/main/source/Sources";<br>
+};<br>
+<br>
+BinDirectory "dists/sarge/contrib/binary-i386" {<br>
+&nbsp;&nbsp;Packages "dists/sarge/contrib/binary-i386/Packages";<br>
+&nbsp;&nbsp;Contents "dists/sarge/Contents-i386";<br>
+&nbsp;&nbsp;SrcPackages "dists/sarge/contrib/source/Sources";<br>
+};<br>
+<br>
+BinDirectory "dists/sarge/non-free/binary-i386" {<br>
+&nbsp;&nbsp;Packages "dists/sarge/non-free/binary-i386/Packages";<br>
+&nbsp;&nbsp;Contents "dists/sarge/Contents-i386";<br>
+&nbsp;&nbsp;SrcPackages "dists/sarge/non-free/source/Sources";<br>
+};<br>
+<br>
+&nbsp;&nbsp;<br>
+Tree "dists/sarge" {<br>
+&nbsp;&nbsp;Sections "main contrib non-free";<br>
+&nbsp;&nbsp;Architectures "i386 source";<br>
+};<br>
+<br>
+Default {<br>
+&nbsp;&nbsp;Packages {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Extensions ".deb";<br>
+&nbsp;&nbsp;};<br>
+};<br>
+</code>
+</p>
+
+<p>Once you have the configuration files tweaked to your liking, you are
+ ready to actually make your repository "visible" to apt.  Personally, I
+ found it easier and more efficient to create a short shell script to do
+ this for me.  I called it <code>update-archive.sh</code> and put in the repository root along with the configuration files.  The contents are listed below:</p>
+
+<p class="codelisting">
+<code>
+#!/bin/sh<br>
+apt-ftparchive generate apt-ftparchive.conf<br>
+apt-ftparchive -c apt-sarge-release.conf release dists/sarge/ &gt;dists/sarge/Release<br>
+</code>
+</p>
+
+<h3><a id="updating">Updating the Repository</a></h3>
+
+<p>Once all the files and packages are in place, you can proceed to 
+update the repository databases.  You can do this by running the shell 
+script listed above or manually executing the commands.  The output 
+should resemble this:</p>
+
+<p class="codelisting">
+<code>
+$ /update-archive.sh<br>
+&nbsp;dists/sarge/main/binary-i386: 21 files 42.7MB 2s<br>
+&nbsp;dists/sarge/contrib/binary-i386: 0 files 0B 0s<br>
+&nbsp;dists/sarge/non-free/binary-i386: 4 files 114MB 5s<br>
+&nbsp;dists/sarge/main/binary-i386/: 21 files 42.7MB 0s<br>
+&nbsp;dists/sarge/contrib/binary-i386/: 0 files 0B 0s<br>
+&nbsp;dists/sarge/non-free/binary-i386/: 4 files 114MB 0s<br>
+&nbsp;dists/sarge/main/source/: 2 pkgs in 0s<br>
+&nbsp;dists/sarge/contrib/source/: 0 pkgs in 0s<br>
+&nbsp;dists/sarge/non-free/source/: 0 pkgs in 0s<br>
+Done Packages, Starting contents.<br>
+Done. 314MB in 50 archives. Took 7s<br>
+</code>
+</p>
+
+<p>You will need to update your repository periodically.  You can either
+ set a cron job to run your script, or run it manually whenever you add 
+or remove packages.</p>
+
+<h3><a id="using">Using the Repository</a></h3>
+
+<p>You can either use the repository locally or remotely.</p>
+
+<p>For local access:</p>
+
+<p style="text-indent:40px"><code>deb file:///path/to/repository/ sarge main non-free contrib</code></p>
+
+<p>For remote access (like an official apt repository):</p>
+
+<p style="text-indent:40px"><code>deb http://your.server/repository/ sarge main non-free contrib</code></p>
+
+<p>If you managed to read this whole thing, please <a href="mailto:roberto@connexer.com" id="feedback">let me know</a> what you thought, whether it was useful, or if you have any suggestions for improvement.</p>
+
+
+
+</div>
+
+
+<div id="footer">
+  <p class="contact">Copyright © 2005-2011 <a href="mailto:roberto@connexer.com">Roberto C. Sanchez</a></p>
+  <p>
+  <a href="http://validator.w3.org/check?uri=referer" onclick="window.open(this.href,'newwin'); return false;"><img src="debrepository_files/valid-xhtml10-mini.png" style="height: 15px; width: 80px;" alt="Valid XHTML 1.0!"></a>
+  <a href="http://jigsaw.w3.org/css-validator/check/referer" onclick="window.open(this.href,'newwin'); return false;"><img src="debrepository_files/vcss-mini.png" style="height: 15px; width: 80px;" alt="Valid CSS!"></a>
+  <a href="http://www.debian.org/" onclick="window.open(this.href,'newwin'); return false;"><img src="debrepository_files/debian-powered-mini.png" style="height: 15px; width: 80px;" alt="Powered by Debian"></a>
+  <a href="http://www.anybrowser.org/campaign/" onclick="window.open(this.href,'newwin'); return false;"><img src="debrepository_files/AnyBrowser-mini.png" style="height: 15px; width: 80px;" alt="Viewable with Any Browser!"></a>
+  <a href="http://getfirefox.com/" onclick="window.open(this.href,'newwin'); return false;"><img src="debrepository_files/get-mini.png" style="height: 15px; width: 80px;" alt="Get Firefox!"></a>
+  </p>
+</div>
+
+
+</div>
+
+
+
+
+
+
+</body></html>
